@@ -13,7 +13,7 @@ const getAllJobs = async (req, res) => {
 
   if (search) {
     queryObject.position = { $regex: search, $options: 'i' };
-  }
+  } // This line of code is setting the position property of the queryObject object to a regular expression that matches the search string, case-insensitive. The $regex operator is used to perform a regular expression search, and the $options: 'i' part specifies that the search should be case-insensitive.
 
   if (status && status !== 'all') {
     queryObject.status = status;
@@ -24,6 +24,7 @@ const getAllJobs = async (req, res) => {
   }
 
   let result = Job.find(queryObject);
+  // console.log(queryObject);
 
   if (sort === 'latest') {
     result = result.sort('-createdAt');
@@ -38,8 +39,20 @@ const getAllJobs = async (req, res) => {
     result = result.sort('-position');
   }
 
+  // console.log(queryObject);
+
+  const page = Number(req.query.page) || 1;
+  const limit = Number(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  result = result.skip(skip).limit(limit);
+  // the skip() and limit() methods are commonly used in Mongoose, which is an Object Data Modeling (ODM) library for MongoDB and Node.js.
   const jobs = await result;
-  res.status(StatusCodes.OK).json({ jobs });
+
+  const totalJobs = await Job.countDocuments(queryObject);
+  const numOfPages = Math.ceil(totalJobs / limit);
+
+  res.status(StatusCodes.OK).json({ jobs, totalJobs, numOfPages });
 };
 const getJob = async (req, res) => {
   const {
