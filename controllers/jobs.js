@@ -136,19 +136,36 @@ const showStats = async (req, res) => {
   };
 
   let monthlyApplications = await Job.aggregate([
+    // Match documents where the createdBy field matches the userId from the req.user object.
     { $match: { createdBy: new mongoose.Types.ObjectId(req.user.userId) } },
+    // Group the documents by the year and month of the `createdAt` field, and counts the number of documents in each group.
     {
       $group: {
         _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
         count: { $sum: 1 },
       },
     },
+    // Sort the groups by year and month in descending order.
     { $sort: { '_id.year': -1, '_id.month': -1 } },
+    // Limit the result to the 6 most recent groups.
     { $limit: 6 },
   ]);
+
+  monthlyApplications = monthlyApplications.map((item) => {
+    const {
+      _id: { year, month },
+      count,
+    } = item;
+    const date = moment()
+      .month(month - 1)
+      .year(year)
+      .format('MMM Y');
+    return { date, count };
+  });
+
   console.log(monthlyApplications);
 
-  res.status(StatusCodes.OK).json({ defaultStats, monthlyApplications: [] });
+  res.status(StatusCodes.OK).json({ defaultStats, monthlyApplications });
 };
 
 module.exports = {
