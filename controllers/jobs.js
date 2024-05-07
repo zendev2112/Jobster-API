@@ -1,3 +1,4 @@
+/* eslint-disable prefer-const */
 const { StatusCodes } = require('http-status-codes');
 const mongoose = require('mongoose');
 const moment = require('moment');
@@ -121,17 +122,33 @@ const showStats = async (req, res) => {
     { $group: { _id: '$status', count: { $sum: 1 } } },
   ]);
 
+  // transform an array of objects into a single object.
   stats = stats.reduce((acc, curr) => {
     const { _id: title, count } = curr;
     acc[title] = count;
     return acc;
   }, {});
 
-  console.log(stats);
+  const defaultStats = {
+    pending: stats.pending || 0,
+    interview: stats.interview || 0,
+    declined: stats.declined || 0,
+  };
 
-  res
-    .status(StatusCodes.OK)
-    .json({ defaultStats: {}, monthlyApplications: [] });
+  let monthlyApplications = await Job.aggregate([
+    { $match: { createdBy: new mongoose.Types.ObjectId(req.user.userId) } },
+    {
+      $group: {
+        _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
+        count: { $sum: 1 },
+      },
+    },
+    { $sort: { '_id.year': -1, '_id.month': -1 } },
+    { $limit: 6 },
+  ]);
+  console.log(monthlyApplications);
+
+  res.status(StatusCodes.OK).json({ defaultStats, monthlyApplications: [] });
 };
 
 module.exports = {
